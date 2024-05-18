@@ -1,0 +1,347 @@
+rm(list=ls())
+
+setwd("/Users/kxqs216/Library/CloudStorage/OneDrive-AZCollaboration/Desktop/gyan/personal/bittoo")
+
+ 
+
+require(Seurat)
+
+require(scater)
+
+require(cowplot)
+
+library(dplyr)
+
+library(patchwork)
+
+library(ggpubr)
+
+ 
+
+mydata <- readRDS("sce.EC.Exc.scAlign.rds")
+
+pbmc <- as.Seurat(mydata)
+
+rm(mydata)
+
+ 
+
+#Identification of highly variable features (feature selection)
+
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+
+top10 <- head(VariableFeatures(pbmc), 10)
+
+# plot variable features with and without labels
+
+plot1 <- VariableFeaturePlot(pbmc)
+
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+
+plot1 + plot2
+
+ 
+
+#Scaling the data
+
+all.genes <- rownames(pbmc)
+
+pbmc <- ScaleData(pbmc, features = all.genes)
+
+ 
+
+#Perform linear dimensional reduction
+
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+
+pbmc <- RunICA(pbmc, features = VariableFeatures(object = pbmc))
+
+ 
+
+# Examine and visualize PCA results a few different ways
+
+print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+
+DimPlot(pbmc, reduction = "pca") + NoLegend()
+
+DimHeatmap(pbmc, dims = 1, cells = 500, balanced = TRUE)
+
+DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)
+
+ 
+
+#Determine the ‘dimensionality’ of the dataset
+
+ElbowPlot(pbmc)
+
+ 
+
+#Cluster the cells
+
+pbmc <- FindNeighbors(pbmc, dims = 1:64, reduction = "CCA.ALIGNED")
+
+pbmc <- FindClusters(pbmc, resolution = 0.1)
+
+ 
+
+x <- seq(0, 3, 0.1)
+
+p <- data.frame(ndx=1, res=0, clusters=0)
+
+for(n in 1:length(x)) {
+
+  pbmc <- FindClusters(pbmc, resolution = x[n])
+
+  p[n,1] <- n
+
+  p[n,2] <- x[n]
+
+  p[n,3] <- length(levels(pbmc@meta.data$seurat_clusters))
+
+  print(p[n,])
+
+}
+
+ 
+
+x <- seq(0, 1, 0.01)
+
+p1 <- data.frame(ndx=1, res=0, clusters=0)
+
+for(n in 1:length(x)) {
+
+  pbmc <- FindClusters(pbmc, resolution = x[n])
+
+  p1[n,1] <- n
+
+  p1[n,2] <- x[n]
+
+  p1[n,3] <- length(levels(pbmc@meta.data$seurat_clusters))
+
+  print(p1[n,])
+
+}
+
+par(mfrow=c(1,2))
+
+plot(x = p[,2], y = p[,3])
+
+plot(x = p1[,2], y = p1[,3])
+
+ 
+
+# Loess method
+
+g1 <- ggplot(p, aes(x=res, y=clusters)) +
+
+  geom_point()+
+
+  geom_line()+
+
+  #geom_smooth()+
+
+  ggtitle("Dependency of clusters on resolution") +
+
+  xlab("Resolution") + ylab("Total clusters")
+
+g2 <- ggplot(p1, aes(x=res, y=clusters)) +
+
+  geom_point()+
+
+  geom_line()+
+
+  #geom_smooth()+
+
+  ggtitle("Dependency of clusters on resolution") +
+
+  xlab("Resolution") + ylab("Total clusters")
+
+g1+g2
+
+ 
+
+ 
+
+# Look at cluster IDs of the first 5 cells
+
+head(Idents(pbmc), 5)
+
+ 
+
+#Cluster the cells
+
+pbmc <- FindNeighbors(pbmc, dims = 1:64, reduction = "CCA.ALIGNED")
+
+pbmc <- FindClusters(pbmc, resolution = 0.1)
+
+ 
+
+#Run non-linear dimensional reduction (UMAP/tSNE)
+
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+
+pbmc <- RunTSNE(pbmc, dims = 1:64, reduction = "CCA.ALIGNED")
+
+# individual clusters
+
+DimPlot(pbmc, reduction = "umap", label = TRUE)
+
+ 
+
+DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 5) +theme(legend.position = "none") + ggtitle("6 clusters @res 0.1")
+
+pbmc <- FindClusters(pbmc, resolution = 0.1)
+
+t1 <- DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 6) +theme(legend.position = "none") + ggtitle("6 clusters @res 0.1")
+
+pbmc <- FindClusters(pbmc, resolution = 0.4)
+
+t2 <- DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 6) +theme(legend.position = "none") + ggtitle("9 clusters @res 0.4")
+
+pbmc <- FindClusters(pbmc, resolution = 0.8)
+
+t3 <- DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 6) +theme(legend.position = "none") + ggtitle("12 clusters @res 0.8")
+
+pbmc <- FindClusters(pbmc, resolution = 1.2)
+
+t4 <- DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 6) +theme(legend.position = "none") + ggtitle("20 clusters @res 1.2")
+
+t1+t2+t3+t4
+
+t2
+
+ 
+
+pbmc <- FindClusters(pbmc, resolution = 0.1)
+
+t1 <- FeaturePlot(pbmc, features = c("RORB"), label.size = 6, reduction = "tsne", label = TRUE)
+
+pbmc <- FindClusters(pbmc, resolution = 0.4)
+
+t2 <- FeaturePlot(pbmc, features = c("RORB"), label.size = 6, reduction = "tsne", label = TRUE)
+
+pbmc <- FindClusters(pbmc, resolution = 0.8)
+
+t3 <- FeaturePlot(pbmc, features = c("RORB"), label.size = 6, reduction = "tsne", label = TRUE)
+
+pbmc <- FindClusters(pbmc, resolution = 1.2)
+
+t4 <- FeaturePlot(pbmc, features = c("RORB"), label.size = 6, reduction = "tsne", label = TRUE)
+
+ggarrange(t1,t2,t3,t4, ncol = 2, nrow = 2, align = 'h') 
+
+ 
+
+df <- data.frame(pbmc@reductions$tsne@cell.embeddings,
+
+           c1=pbmc@meta.data$originalexp_snn_res.0.1,
+
+           c2=pbmc@meta.data$originalexp_snn_res.0.4,
+
+           c3=pbmc@meta.data$originalexp_snn_res.0.8,
+
+           c4=pbmc@meta.data$originalexp_snn_res.1.2,
+
+           gene = FetchData(pbmc, vars = "RORB"))
+
+t1 <- ggplot(df, aes(x=tsne_1, y=tsne_2, color=c1, size=RORB)) +geom_point(alpha = 0.3)+theme(legend.position = "right") + ggtitle("6 clusters @res 0.1")
+
+t2 <- ggplot(df, aes(x=tsne_1, y=tsne_2, color=c2, size=RORB)) +geom_point(alpha = 0.3)+theme(legend.position = "right") + ggtitle("9 clusters @res 0.4")
+
+t3 <- ggplot(df, aes(x=tsne_1, y=tsne_2, color=c3, size=RORB)) +geom_point(alpha = 0.3)+theme(legend.position = "right") + ggtitle("12 clusters @res 0.8")
+
+t4 <- ggplot(df, aes(x=tsne_1, y=tsne_2, color=c4, size=RORB)) +geom_point(alpha = 0.3)+theme(legend.position = "right") + ggtitle("20 clusters @res 1.2")
+
+ggarrange(t1,t2,t3,t4, ncol = 2, nrow = 2, align = 'h')
+
+ 
+
+pbmc <- FindClusters(pbmc, resolution = 0.4)
+
+t1 <- DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 6) +theme(legend.position = "right") + ggtitle("9 clusters @res 0.4")
+
+t2 <- FeaturePlot(pbmc, features = c("RORB"), label.size = 6, reduction = "tsne", label = TRUE)
+
+t1 + t2
+
+ 
+
+pbmc <- FindClusters(pbmc, resolution = 0.6)
+
+t3 <- DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 6) +theme(legend.position = "right") + ggtitle("12 clusters @res 0.6")
+
+t4 <- FeaturePlot(pbmc, features = c("RORB"), label.size = 6, reduction = "tsne", label = TRUE)
+
+ggarrange(t1,t2,t3,t4, ncol = 2, nrow = 2, align = 'h')
+
+ 
+
+pbmc <- FindClusters(pbmc, resolution = 0.6)
+
+t1 <- DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 5) +theme(legend.position = "right") + ggtitle("12 clusters @res 0.6")
+
+t2 <- FeaturePlot(pbmc, features = c("RORB"), label.size = 5, reduction = "tsne", label = TRUE)
+
+ggarrange(t1,t2, ncol = 1, nrow = 2, align = 'h')
+
+ 
+
+pbmc <- FindClusters(pbmc, resolution = 2.0)
+
+t3 <- DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 5) +theme(legend.position = "right") + ggtitle("26 clusters @res 2.0")
+
+t4 <- FeaturePlot(pbmc, features = c("RORB"), label.size = 5, reduction = "tsne", label = TRUE)
+
+ggarrange(t1,t2,t3,t4, ncol = 2, nrow = 2, align = 'h')
+
+ 
+
+ 
+
+# find all markers of cluster 2
+
+pbmc <- FindClusters(pbmc, resolution = 0.6)
+
+DimPlot(pbmc, reduction = "tsne", label = TRUE, label.size = 6) +theme(legend.position = "right") + ggtitle("12 clusters @res 0.6")
+
+FeaturePlot(pbmc, features = c("RORB"), label.size = 5, reduction = "tsne", label = TRUE)
+
+cluster3.markers <- FindMarkers(pbmc, ident.1 = 3)
+
+head(cluster2.markers, n = 5)
+
+ 
+
+# find markers for every cluster compared to all remaining cells, report only the positive ones
+
+pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE)
+
+pbmc.markers %>%
+
+  group_by(cluster) %>%
+
+  dplyr::filter(avg_log2FC > 1)
+
+ 
+
+pbmc.markers %>%
+
+  group_by(cluster) %>%
+
+  dplyr::filter(avg_log2FC > 1) %>%
+
+  slice_head(n = 10) %>%
+
+  ungroup() -> top10
+
+DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+
+ 
+
+saveRDS(pbmc, file = "pbmc_tutorial.rds")
+
+ 
