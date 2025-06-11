@@ -164,6 +164,4 @@ The key steps included:
 * Leng, et al. (2021). A molecularly defined signature for entorhinal cortex excitatory neurons. Nature.
 * Seurat PBMC3K Tutorial: [Link to the Seurat PBMC3K Tutorial if available]
 
-## **Contact**
 
-For any queries regarding this analysis, feel free to contact the repository owner at [Your Email Address or GitHub Profile URL].
